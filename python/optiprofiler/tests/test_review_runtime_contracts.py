@@ -210,3 +210,42 @@ def test_reference_history_diagnostic_survives_warning_suppression(caplog):
         warnings.simplefilter('ignore')
         assert np.isnan(reference_maxcv_or_nan(invalid, [1.]))
     assert 'ValueError: wrong constraint size' in caplog.text
+
+
+@pytest.mark.parametrize('with_init', [False, True])
+def test_provider_relative_import_and_dataclass_have_package_context(tmp_path, with_init):
+    ref, counter = provider(tmp_path)
+    folder = Path(ref.locator).parent
+    (folder / 'helper.py').write_text('NAMES = ["relative"]\n')
+    if with_init:
+        (folder / '__init__.py').write_text('from .helper import NAMES\n')
+    tools = Path(ref.locator)
+    tools.write_text(tools.read_text() + 'from .helper import NAMES\n'
+                     'def datatoy_select(options): return NAMES\n')
+    collision = ModuleType('datatoy')
+    original = sys.modules.get('datatoy')
+    sys.modules['datatoy'] = collision
+    try:
+        assert load_problem_library(ref).select({}, {}) == ['relative']
+        assert load_problem_library(ref).select({}, {}) == ['relative']
+        assert counter.read_text() == 'import\n'
+        assert sys.modules['datatoy'] is collision
+    finally:
+        if original is None:
+            sys.modules.pop('datatoy', None)
+        else:
+            sys.modules['datatoy'] = original
+
+
+def test_failed_package_import_rolls_back_relative_modules(tmp_path):
+    ref, counter = provider(tmp_path)
+    tools = Path(ref.locator)
+    (tools.parent / 'helper.py').write_text('NAMES = ["relative"]\n')
+    original = tools.read_text()
+    tools.write_text('from .helper import NAMES\nraise RuntimeError("retry")\n')
+    before = set(sys.modules)
+    with pytest.raises(RuntimeError, match='retry'):
+        load_problem_library(ref)
+    assert not any(n.startswith('_optiprofiler_provider_datatoy_') for n in set(sys.modules)-before)
+    tools.write_text(original + 'from .helper import NAMES\n')
+    assert load_problem_library(ref).select({}, {}) == ['toy']

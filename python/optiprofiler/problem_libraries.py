@@ -454,35 +454,50 @@ def _validate_plugin(plugin, expected_name):
 
 
 def _load_tools_module(reference):
-    module_path = Path(reference.locator)
+    module_path = Path(reference.locator).resolve()
     if reference.is_builtin:
-        module_name = (
-            f'optiprofiler.problem_libs.{reference.name}.'
-            f'{reference.name}_tools'
-        )
+        package_name = f'optiprofiler.problem_libs.{reference.name}'
     else:
-        identity = hashlib.sha256(str(module_path.resolve()).encode()).hexdigest()[:16]
-        module_name = f'_optiprofiler_provider_{reference.name}_{identity}'
+        identity = hashlib.sha256(str(module_path).encode()).hexdigest()[:16]
+        package_name = f'_optiprofiler_provider_{reference.name}_{identity}'
+    module_name = f'{package_name}.{module_path.stem}'
 
-    spec = importlib.util.spec_from_file_location(module_name, str(module_path))
-    if spec is None or spec.loader is None:
-        raise ImportError(
-            f'Cannot create an import specification for problem library '
-            f'"{reference.name}" at {module_path}.'
-        )
-    # Register before execution for decorators and cache only successful imports.
-    # A file identity separates equally named providers in different directories.
     with _TOOLS_IMPORT_LOCK:
         if module_name in sys.modules:
             return sys.modules[module_name]
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = module
+        previous = set(sys.modules)
         try:
+            if not reference.is_builtin and package_name not in sys.modules:
+                init_path = module_path.parent / '__init__.py'
+                if init_path.is_file():
+                    package_spec = importlib.util.spec_from_file_location(
+                        package_name, str(init_path),
+                        submodule_search_locations=[str(module_path.parent)],
+                    )
+                else:
+                    package_spec = importlib.machinery.ModuleSpec(
+                        package_name, loader=None, is_package=True,
+                    )
+                    package_spec.submodule_search_locations = [str(module_path.parent)]
+                package = importlib.util.module_from_spec(package_spec)
+                sys.modules[package_name] = package
+                if package_spec.loader is not None:
+                    package_spec.loader.exec_module(package)
+            spec = importlib.util.spec_from_file_location(module_name, str(module_path))
+            if spec is None or spec.loader is None:
+                raise ImportError(f'Cannot load problem library "{reference.name}" at {module_path}.')
+            module = importlib.util.module_from_spec(spec)
+            # Decorators need the module registered before executing its body.
+            sys.modules[module_name] = module
             spec.loader.exec_module(module)
+            return module
         except BaseException:
-            sys.modules.pop(module_name, None)
+            # Roll back this provider's new registrations, including relative
+            # imports, without removing modules that belonged to the caller.
+            for name in list(sys.modules):
+                if name not in previous and (name == package_name or name.startswith(package_name + '.')):
+                    sys.modules.pop(name, None)
             raise
-        return module
 
 
 def _load_legacy_plugin(reference):
