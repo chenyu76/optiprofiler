@@ -3349,13 +3349,7 @@ class FeaturedProblem(Problem):
         StopIteration
             If the number of the objective function evaluations has reached two times the maximum function evaluations.
         """
-        if self._real_n_eval_fun >= 2 * self._max_eval:
-            raise StopIteration(f'The number of the objective function evaluations has reached {2 * self._max_eval} (two times the maximum function evaluations).')
-        self._real_n_eval_fun += 1
-
-        if self.n_eval_fun >= self._max_eval:
-            # If the maximum number of evaluations has been reached, return
-            # the last evaluated objective function value.
+        if not _begin_featured_query(self, 'fun'):
             return self._last_fun
 
         # Generate the affine transformation.
@@ -3404,13 +3398,7 @@ class FeaturedProblem(Problem):
         StopIteration
             If the number of the nonlinear inequality constraint evaluations has reached two times the maximum function evaluations.
         """
-        if self._real_n_eval_cub >= 2 * self._max_eval:
-            raise StopIteration(f'The number of the nonlinear inequality constraint evaluations has reached {2 * self._max_eval} (two times the maximum function evaluations).')
-        self._real_n_eval_cub += 1
-
-        if self.n_eval_cub >= self._max_eval:
-            # If the maximum number of evaluations has been reached, return
-            # the last evaluated nonlinear inequality constraints.
+        if not _begin_featured_query(self, 'cub'):
             return self._last_cub
 
         # Generate the affine transformation.
@@ -3452,13 +3440,7 @@ class FeaturedProblem(Problem):
         StopIteration
             If the number of the nonlinear equality constraint evaluations has reached two times the maximum function evaluations.
         """
-        if self._real_n_eval_ceq >= 2 * self._max_eval:
-            raise StopIteration(f'The number of the nonlinear equality constraint evaluations has reached {2 * self._max_eval} (two times the maximum function evaluations).')
-        self._real_n_eval_ceq += 1
-
-        if self.n_eval_ceq >= self._max_eval:
-            # If the maximum number of evaluations has been reached, return
-            # the last evaluated nonlinear equality constraints.
+        if not _begin_featured_query(self, 'ceq'):
             return self._last_ceq
 
         # Generate the affine transformation.
@@ -3689,3 +3671,16 @@ def _process_2d_array(x, message):
     if x.ndim != 2:
         raise ValueError(message)
     return x
+
+
+def _begin_featured_query(owner, channel):
+    """Apply the shared observed-query budget before either recorder executes."""
+    real_count = '_real_n_eval_' + channel
+    if getattr(owner, real_count) >= 2 * owner._max_eval:
+        label = {'fun': 'objective function',
+                 'cub': 'nonlinear inequality constraint',
+                 'ceq': 'nonlinear equality constraint'}[channel]
+        raise StopIteration(f'The number of the {label} evaluations has reached '
+                            f'{2 * owner._max_eval} (two times the maximum function evaluations).')
+    setattr(owner, real_count, getattr(owner, real_count) + 1)
+    return getattr(owner, 'n_eval_' + channel) < owner._max_eval
