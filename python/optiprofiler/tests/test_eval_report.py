@@ -90,10 +90,14 @@ def _plot_data(path, report):
     return companion
 
 
-def test_saved_experiment_load_has_compact_main_and_complete_numeric_detail(tmp_path, monkeypatch):
+def test_saved_experiment_load_has_compact_main_and_complete_numeric_detail(tmp_path, tmp_path_factory, monkeypatch):
     fixture = os.environ.get('OPTIPROFILER_REPORT_ARCHIVE')
     if not fixture:
-        pytest.skip('set OPTIPROFILER_REPORT_ARCHIVE to an immutable saved experiment directory')
+        generated = tmp_path_factory.mktemp('saved-report-source')
+        benchmark([stay, zero], plibs=['custom'], problem_names=['custom1'],
+                  n_jobs=1, silent=True, savepath=str(generated),
+                  draw_hist_plots='none', max_eval_factor=2, max_tol_order=3)
+        fixture = next(generated.rglob('data_for_loading.h5')).parent
     fixture = Path(fixture).resolve()
     before = {p: hashlib.sha256(p.read_bytes()).hexdigest()
               for p in fixture.rglob('*') if p.is_file()}

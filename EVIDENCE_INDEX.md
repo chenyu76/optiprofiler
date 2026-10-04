@@ -1,5 +1,7 @@
 # Evidence index: `codex/reference-facts-scalar`
 
+> Historical evidence for the commit stated below. This document is not an acceptance record for the current branch. Run the core and integration workflows at the candidate commit for current validation; the temporary paths below refer to the original test environment.
+
 Tested SHA `249cda5e4d52185f46f7f4fb43c82c658ecb2b4f`, base
 `54d42bd550d0493db661711715f868518d433924`. See `IMPLEMENTATION_REPORT.md` for
 what the evidence shows; this file says where it is and how to reproduce it.

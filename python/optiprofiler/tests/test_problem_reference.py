@@ -650,7 +650,7 @@ class CallCounter:
 
 class TestCallbackCountInvariance:
 
-    FEATURES = ['plain', 'noisy', 'permuted', 'linearly_transformed', 'perturbed_x0', 'quantized',
+    FEATURES = ['plain', 'noisy', 'truncated', 'random_nan', 'nonquantifiable_constraints', 'permuted', 'linearly_transformed', 'perturbed_x0', 'quantized',
                 'unrelaxable_constraints', 'noisy+permuted', 'linearly_transformed+quantized+noisy',
                 ('custom', ('mod_x0', 'mod_affine')), ('custom', tuple(sorted(CUSTOM_CALLBACKS))),
                 ('custom+noisy', ('mod_affine',)), ('custom+noisy', ('mod_fun', 'mod_cub'))]

@@ -130,6 +130,23 @@ trusted compatibility boundary (`optiprofiler.legacy_compat`). Python and
 MATLAB agree on the contract and each support language-local replay and seed
 policies; matching random samples across the two languages is not promised.
 
+### Runtime Compatibility Boundaries
+
+The single-stage and composed Python streams both feed the legacy scalar
+payload mixer after deriving their channel seed. The mixer's sum over payload
+values is insensitive to coordinate permutations: a fixed stage, channel and
+served index can give the same noise at distinct permuted points. These are
+replayable streams, not a guarantee of independent noise at every point. A
+position-sensitive mixer requires a new recorded seed policy and an explicit
+experimental decision; changing existing streams would invalidate old replay.
+
+Direct featured-problem constructors accept different seed domains: Python
+accepts nonnegative integers without a 32-bit upper bound; MATLAB accepts
+integers from 0 through 2^32-1. Cross-language configurations should use the
+common 32-bit domain. Benchmark-generated run seeds already use that domain.
+Composed derivatives remain explicitly unsupported in both languages; a
+single-stage derivative is a reference derivative, not an observed derivative.
+
 ## Reference Facts and an Independent Arena Scorer
 
 Build the scorer around an offline reference catalog and a frozen scoring

@@ -117,7 +117,7 @@ classdef TestFeatureReviewRegressions < matlab.unittest.TestCase
         end
 
         function reportStagingFilesAreOwnerOnlyBeforeContentIsWritten(testCase)
-            if ~isunix, return; end
+            testCase.assumeTrue(isunix, 'Owner-only permissions are tested on Unix platforms.');
             setappdata(0, 'OP_REVIEW_STAGE_MODES', {});
             testCase.addTeardown(@() rmappdata(0, 'OP_REVIEW_STAGE_MODES'));
             target = fullfile(testCase.Work, 'staging.json');
