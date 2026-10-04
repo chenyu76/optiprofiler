@@ -170,6 +170,7 @@ classdef FeaturedProblem < Problem
         last_ceq
         kernel
         final_view
+        reference_history_failure = []
     end
 
     properties (Dependent)
@@ -423,7 +424,8 @@ classdef FeaturedProblem < Problem
                 obj.fun_hist = [obj.fun_hist,obj.final_view.referenceValue('fun',x)];
                 try
                     obj.maxcv_hist = [obj.maxcv_hist,obj.final_view.referenceMaxcv(x)];
-                catch
+                catch err
+                    obj.recordHistoryFailure(err);
                     obj.maxcv_hist = [obj.maxcv_hist,NaN];
                 end
                 return
@@ -449,7 +451,8 @@ classdef FeaturedProblem < Problem
             obj.fun_hist = [obj.fun_hist, f_true];
             try
                 obj.maxcv_hist = [obj.maxcv_hist, obj.maxcv(x)];
-            catch
+            catch err
+                obj.recordHistoryFailure(err);
                 obj.maxcv_hist = [obj.maxcv_hist, NaN];
             end
         end
@@ -735,6 +738,16 @@ classdef FeaturedProblem < Problem
     end
 
     methods (Access = private)
+        function recordHistoryFailure(obj, err)
+            % Keep the first cause even when solver execution disables warnings.
+            if isempty(obj.reference_history_failure)
+                obj.reference_history_failure = struct('identifier', err.identifier, ...
+                    'message', shortenMessageForLog(err.message));
+                warning('OptiProfiler:FeaturedProblem:ReferenceHistoryUnavailable', ...
+                    'Reference constraint history unavailable: %s: %s', ...
+                    err.identifier, obj.reference_history_failure.message);
+            end
+        end
         function [A, point] = originalPoint(obj, x)
             % The matrix A and the point A * x + b of the original problem, if
             % the feature changes the variables and x is a point of this
@@ -806,6 +819,9 @@ classdef FeaturedProblem < Problem
     end
 
     methods (Hidden)
+        function failure = historyFailure(obj)
+            failure = obj.reference_history_failure;
+        end
         function x = toOriginalCoordinates(obj,x)
             if isempty(obj.final_view)
                 [A,b] = obj.kernel.modifier_affine(obj.seed,obj.problem);

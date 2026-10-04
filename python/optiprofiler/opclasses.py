@@ -3131,6 +3131,7 @@ class FeaturedProblem(Problem):
         self._cub_hist = []
         self._ceq_hist = []
         self._maxcv_hist = []
+        self._reference_history_warned = False
         self._last_fun = np.nan
         self._last_cub = np.nan
         self._last_ceq = np.nan
@@ -3371,7 +3372,7 @@ class FeaturedProblem(Problem):
         # We should not store the modified value because the performance of an optimization solver
         # should be measured using the original objective function.
         self._fun_hist.append(f_true)
-        self._maxcv_hist.append(reference_maxcv_or_nan(self.maxcv, x))
+        self._maxcv_hist.append(reference_maxcv_or_nan(self.maxcv, x, self))
 
         return f
 

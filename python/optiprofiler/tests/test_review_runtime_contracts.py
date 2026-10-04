@@ -249,3 +249,20 @@ def test_failed_package_import_rolls_back_relative_modules(tmp_path):
     assert not any(n.startswith('_optiprofiler_provider_datatoy_') for n in set(sys.modules)-before)
     tools.write_text(original + 'from .helper import NAMES\n')
     assert load_problem_library(ref).select({}, {}) == ['toy']
+
+
+@pytest.mark.parametrize('name', ['plain', 'truncated+truncated'])
+def test_reference_history_diagnostic_is_bounded_per_trial(name, caplog):
+    def malformed(x):
+        return np.array([1.]) if np.all(x == 0) else np.array([1., 2.])
+    root = Problem(lambda x: float(sum(x)), [0., 0.], cub=malformed)
+    fp = FeaturedProblem(root, Feature(name), 3, 17)
+    with pytest.warns(RuntimeWarning, match='Reference constraint') as recorded:
+        for _ in range(3):
+            assert fp.fun(np.array([1., 1.])) == 2.
+    assert len(recorded) == 1
+    assert len([r for r in caplog.records if r.name == 'optiprofiler.recording']) == 1
+    assert np.all(np.isnan(fp.maxcv_hist))
+    other = FeaturedProblem(root, Feature(name), 3, 17)
+    with pytest.warns(RuntimeWarning, match='Reference constraint'):
+        other.fun(np.array([1., 1.]))

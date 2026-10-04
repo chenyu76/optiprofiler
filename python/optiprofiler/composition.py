@@ -818,6 +818,7 @@ class ComposedFeaturedProblem(FeaturedProblem):
         self._cub_hist = []
         self._ceq_hist = []
         self._maxcv_hist = []
+        self._reference_history_warned = False
         self._last_fun = np.nan
         self._last_cub = np.nan
         self._last_ceq = np.nan
@@ -872,7 +873,7 @@ class ComposedFeaturedProblem(FeaturedProblem):
         f = self._final.observed_fun(x)
         self._last_fun = f
         self._fun_hist.append(self._final.reference_fun(x))
-        self._maxcv_hist.append(reference_maxcv_or_nan(self._final.reference_maxcv, x))
+        self._maxcv_hist.append(reference_maxcv_or_nan(self._final.reference_maxcv, x, self))
         return f
 
     def cub(self, x, record_hist=True):

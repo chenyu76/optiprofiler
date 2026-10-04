@@ -229,6 +229,12 @@ function result = solveOneProblem(solvers, problem, feature, problem_name, len_p
                 clear x;
             end
             clear warning_cleanup;
+            failure = featured_problem.historyFailure();
+            if ~isempty(failure) && ~profile_options.(ProfileOptionKey.SILENT.value)
+                printOptiProfilerMessage('WARNING', sprintf( ...
+                    'Reference history unavailable for %s with %s (run %d): %s: %s', ...
+                    problem_name, solver_log_names{i_solver}, i_run, failure.identifier, failure.message));
+            end
             n_eval(i_solver, i_run) = featured_problem.n_eval_fun;
             fun_history(i_solver, i_run, 1:n_eval(i_solver, i_run)) = featured_problem.fun_hist(1:n_eval(i_solver, i_run));
             maxcv_history(i_solver, i_run, 1:n_eval(i_solver, i_run)) = featured_problem.maxcv_hist(1:n_eval(i_solver, i_run));
