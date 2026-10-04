@@ -14,7 +14,6 @@ from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime
 from functools import wraps
 from inspect import signature
-from multiprocessing import Pool
 from multiprocessing.reduction import ForkingPickler
 from pathlib import Path
 from typing import Any, Callable
@@ -28,6 +27,7 @@ from matplotlib.lines import Line2D
 from matplotlib.backends import backend_pdf
 from matplotlib.ticker import MaxNLocator, FuncFormatter
 
+from ._parallel import run_tasks
 from .opclasses import Feature, Problem, FeaturedProblem
 from .plib_config import _resolve_plib_options
 from .problem_libraries import _copy_problem_library_options, _normalize_selected_problem_names, load_problem_library, resolve_problem_library
@@ -2369,8 +2369,8 @@ def _solve_all_problems(solvers, plib, feature, plan, problem_options, profile_o
 
     # Fall back to sequential mode if the arguments cannot be pickled (e.g.,
     # when the user passes lambda functions as solvers or feature modifiers).
-    # Use ForkingPickler (same as multiprocessing.Pool) — plain pickle.dumps can
-    # disagree and let unpicklable tasks reach starmap, which then crashes.
+    # Use ForkingPickler (same as the process executor) — plain pickle.dumps can
+    # disagree and let unpicklable tasks reach the executor, which then crashes.
     if not sequential_mode:
         try:
             sample_arg = (
@@ -2400,9 +2400,9 @@ def _solve_all_problems(solvers, plib, feature, plan, problem_options, profile_o
         results = map(lambda arg: _solve_one_problem_wrapper(*arg), args)
     else:
         logger.info('Entering the parallel section.')
-        with Pool(profile_options[ProfileOption.N_JOBS], initializer=setup_worker_logging,
-        initargs=(log_queue,)) as p:
-            results = p.starmap(_solve_one_problem_wrapper, args)
+        results = run_tasks(_solve_one_problem_wrapper, args,
+                            profile_options[ProfileOption.N_JOBS], setup_worker_logging,
+                            (log_queue,))
         logger.info('Leaving the parallel section.')
 
     # Keep load failures observable before the legacy aggregate discards them.
