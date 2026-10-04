@@ -10,13 +10,18 @@ libraries does not import optional dependencies such as PyCUTEst.
 from dataclasses import dataclass
 from collections.abc import Mapping as MappingABC
 from collections.abc import Sequence as SequenceABC
+import hashlib
 import importlib.util
+import sys
+from threading import RLock
 from importlib import metadata
 from pathlib import Path
 import pickle
 import re
 from typing import Any, Callable, Mapping, Optional, Sequence
 
+
+_TOOLS_IMPORT_LOCK = RLock()
 
 PROBLEM_LIBRARY_API_VERSION = 1
 PROBLEM_LIBRARY_ENTRY_POINT_GROUP = 'optiprofiler.problem_libraries'
@@ -456,7 +461,8 @@ def _load_tools_module(reference):
             f'{reference.name}_tools'
         )
     else:
-        module_name = f'{reference.name}.{reference.name}_tools'
+        identity = hashlib.sha256(str(module_path.resolve()).encode()).hexdigest()[:16]
+        module_name = f'_optiprofiler_provider_{reference.name}_{identity}'
 
     spec = importlib.util.spec_from_file_location(module_name, str(module_path))
     if spec is None or spec.loader is None:
@@ -464,9 +470,19 @@ def _load_tools_module(reference):
             f'Cannot create an import specification for problem library '
             f'"{reference.name}" at {module_path}.'
         )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    # Register before execution for decorators and cache only successful imports.
+    # A file identity separates equally named providers in different directories.
+    with _TOOLS_IMPORT_LOCK:
+        if module_name in sys.modules:
+            return sys.modules[module_name]
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except BaseException:
+            sys.modules.pop(module_name, None)
+            raise
+        return module
 
 
 def _load_legacy_plugin(reference):

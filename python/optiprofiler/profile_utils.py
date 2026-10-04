@@ -398,15 +398,15 @@ def check_validity_profile_options(solvers, profile_options):
         if isinstance(profile_options[ProfileOption.MAX_TOL_ORDER], np.integer):
             profile_options[ProfileOption.MAX_TOL_ORDER] = int(profile_options[ProfileOption.MAX_TOL_ORDER])
         if not isinstance(profile_options[ProfileOption.MAX_TOL_ORDER], int):
-            raise TypeError(f'Option {ProfileOption.MAX_TOL_ORDER} must be an integer.')
-        if profile_options[ProfileOption.MAX_TOL_ORDER] < 0 or profile_options[ProfileOption.MAX_TOL_ORDER] > 16:
-            raise ValueError(f'Option {ProfileOption.MAX_TOL_ORDER} must be a positive integer not larger than 16.')
+            raise TypeError(f'Option {ProfileOption.MAX_TOL_ORDER.value} must be an integer.')
+        if profile_options[ProfileOption.MAX_TOL_ORDER] <= 0 or profile_options[ProfileOption.MAX_TOL_ORDER] > 16:
+            raise ValueError(f'Option {ProfileOption.MAX_TOL_ORDER.value} must be a positive integer not larger than 16.')
 
     if ProfileOption.MAX_EVAL_FACTOR in profile_options:
-        if not isinstance(profile_options[ProfileOption.MAX_EVAL_FACTOR], (float, int)):
-            raise TypeError(f'Option {ProfileOption.MAX_EVAL_FACTOR} must be a float or an integer.')
-        if profile_options[ProfileOption.MAX_EVAL_FACTOR] <= 0:
-            raise ValueError(f'Option {ProfileOption.MAX_EVAL_FACTOR} must be positive.')
+        if isinstance(profile_options[ProfileOption.MAX_EVAL_FACTOR], bool) or not isinstance(profile_options[ProfileOption.MAX_EVAL_FACTOR], (float, int)):
+            raise TypeError(f'Option {ProfileOption.MAX_EVAL_FACTOR.value} must be a float or an integer.')
+        if not np.isfinite(profile_options[ProfileOption.MAX_EVAL_FACTOR]) or profile_options[ProfileOption.MAX_EVAL_FACTOR] <= 0:
+            raise ValueError(f'Option {ProfileOption.MAX_EVAL_FACTOR.value} must be finite and positive.')
 
     if ProfileOption.MERIT_FUN in profile_options:
         if not callable(profile_options[ProfileOption.MERIT_FUN]):

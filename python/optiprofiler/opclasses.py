@@ -1,4 +1,5 @@
 import numpy as np
+from .recording import reference_maxcv_or_nan
 from scipy.linalg import qr
 import copyreg
 import re
@@ -3379,10 +3380,7 @@ class FeaturedProblem(Problem):
         # We should not store the modified value because the performance of an optimization solver
         # should be measured using the original objective function.
         self._fun_hist.append(f_true)
-        try:
-            self._maxcv_hist.append(self.maxcv(x))
-        except Exception:
-            self._maxcv_hist.append(np.nan)
+        self._maxcv_hist.append(reference_maxcv_or_nan(self.maxcv, x))
 
         return f
 
@@ -3425,16 +3423,11 @@ class FeaturedProblem(Problem):
         c = self._runtime.modifier_cub(A @ x + b, self._seed, self._problem, len(self._cub_hist))
         self._last_cub = c
 
-        # Evaluate the nonlinear inequality constraints and store the results.
-        c_true = super().cub(A @ x + b)
-
-        # If the feature is 'quantized' and the option ``ground_truth'' is set to true, we should
-        # set c_true to c.
-        if self._runtime.name == 'quantized' and self._runtime.options[FeatureOption.GROUND_TRUTH]:
-            c_true = c
-
         # Record the history of the nonlinear inequality constraints only when `record_hist` is true.
         if record_hist:
+            c_true = super().cub(A @ x + b)
+            if self._runtime.name == 'quantized' and self._runtime.options[FeatureOption.GROUND_TRUTH]:
+                c_true = c
             self._cub_hist.append(c_true)
 
         return c
@@ -3478,19 +3471,21 @@ class FeaturedProblem(Problem):
         c = self._runtime.modifier_ceq(A @ x + b, self._seed, self._problem, len(self._ceq_hist))
         self._last_ceq = c
 
-        # Evaluate the nonlinear equality constraints and store the results.
-        c_true = super().ceq(A @ x + b)
-
-        # If the feature is 'quantized' and the option ``ground_truth'' is set to true, we should
-        # set c_true to c.
-        if self._runtime.name == 'quantized' and self._runtime.options[FeatureOption.GROUND_TRUTH]:
-            c_true = c
-        
         # Record the history of the nonlinear equality constraints only when `record_hist` is true.
         if record_hist:
+            c_true = super().ceq(A @ x + b)
+            if self._runtime.name == 'quantized' and self._runtime.options[FeatureOption.GROUND_TRUTH]:
+                c_true = c
             self._ceq_hist.append(c_true)
 
         return c
+
+    def _maxcv(self, x):
+        """Detailed reference violation without consuming observed evaluations."""
+        if self._runtime.name == 'quantized' and self._runtime.options[FeatureOption.GROUND_TRUTH]:
+            raise NotImplementedError('Detailed quantized reference violation is unsupported by the legacy recorder.')
+        _, point = self._original_point(x, '_maxcv')
+        return self._problem._maxcv(point)
 
     def maxcv(self, x):
         """
@@ -3511,6 +3506,10 @@ class FeaturedProblem(Problem):
         ValueError
             If the argument `x` has an invalid shape.
         """
+
+        x = _process_1d_array(x, 'The argument `x` for method `maxcv` must be a one-dimensional array.')
+        if x.size != self.n:
+            raise ValueError(f'The argument `x` for method `maxcv` must have size {self.n}.')
 
         # If the Feature is ``quantized'' and the option ``ground_truth'' is set to true, we should
         # use the modified constraint violation.

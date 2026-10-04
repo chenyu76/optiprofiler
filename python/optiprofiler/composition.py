@@ -67,6 +67,7 @@ keep the legacy run-seed streams.
 import copy
 
 import numpy as np
+from .recording import reference_maxcv_or_nan
 
 from .experiment import STRATEGY_COMPOSED
 from .feature_definitions import STAGE_CODES, retains_reference
@@ -876,10 +877,7 @@ class ComposedFeaturedProblem(FeaturedProblem):
         f = self._final.observed_fun(x)
         self._last_fun = f
         self._fun_hist.append(self._final.reference_fun(x))
-        try:
-            self._maxcv_hist.append(self._final.reference_maxcv(x))
-        except Exception:
-            self._maxcv_hist.append(np.nan)
+        self._maxcv_hist.append(reference_maxcv_or_nan(self._final.reference_maxcv, x))
         return f
 
     def cub(self, x, record_hist=True):
@@ -907,6 +905,9 @@ class ComposedFeaturedProblem(FeaturedProblem):
         if record_hist:
             self._ceq_hist.append(self._final.reference_ceq(x))
         return c
+
+    def _maxcv(self, x):
+        return self._final.reference_maxcv_detailed(self._point(x, '_maxcv'))
 
     def maxcv(self, x):
         return self._final.reference_maxcv(self._point(x, 'maxcv'))

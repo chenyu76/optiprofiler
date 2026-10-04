@@ -143,6 +143,11 @@ def _close_logging_resources(resources):
             log_queue.join_thread()
         except Exception as exc:
             cleanup_errors.append(exc)
+    if listener is not None and hasattr(listener, '_root_logging_state'):
+        handlers, level = listener._root_logging_state
+        root_logger = logging.getLogger()
+        root_logger.handlers[:] = handlers
+        root_logger.setLevel(level)
     if cleanup_errors and sys.exc_info()[0] is None:
         warnings.warn(
             f'Failed to close one or more benchmark logging resources: '
@@ -2515,7 +2520,7 @@ def _solve_one_problem_wrapper(solvers, feature, plan, problem_name, len_problem
             problem_name,
             _copy_problem_library_options(library_options),
         )
-    except BaseException as exc:
+    except Exception as exc:
         if not profile_options[ProfileOption.SILENT]:
             logger.warning(f'Failed to load    {problem_name:<{len_problem_names}} from "{plib}".')
         if profile_options.get('_eval_report_enabled', False):

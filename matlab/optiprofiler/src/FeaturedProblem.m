@@ -575,6 +575,10 @@ classdef FeaturedProblem < Problem
         end
 
         function varargout = maxcv(obj, x, detailed)
+            if ~isvector(x) || numel(x) ~= obj.n
+                error('MATLAB:FeaturedProblem:maxcvInvalidPoint', 'The point must be a vector with %d entries.', obj.n);
+            end
+            x = x(:);
             if nargin < 3, detailed = false; end
             if ~isempty(obj.final_view)
                 [varargout{1:nargout}] = obj.final_view.referenceMaxcv(x,detailed);
