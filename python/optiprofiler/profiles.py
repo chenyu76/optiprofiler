@@ -996,7 +996,8 @@ def _benchmark(
         raise ValueError(f'Unknown feature name: {feature_name}.')
 
     # Process the problem if provided.
-    if 'problem' in kwargs and kwargs['problem'] is not None:
+    has_single_problem = kwargs.get('problem') is not None
+    if has_single_problem:
         problem = kwargs.pop('problem')
 
     # Get the different options from the keyword arguments.
@@ -1037,7 +1038,7 @@ def _benchmark(
     )
 
     explicit_plib_options = problem_options.get(ProblemOption.PLIB_OPTIONS, {})
-    if explicit_plib_options and 'problem' in locals():
+    if explicit_plib_options and has_single_problem:
         raise ValueError(
             f'Option {ProblemOption.PLIB_OPTIONS} cannot be used with the '
             '`problem` option because no problem library is selected or loaded.'
@@ -1087,7 +1088,7 @@ def _benchmark(
     # Resolve plugin-owned options before creating output directories or logging
     # resources. Configuration errors therefore fail without leaving a partial
     # experiment behind.
-    if not is_load and 'problem' not in locals():
+    if not is_load and not has_single_problem:
         problem_options[ProblemOption.PLIB_OPTIONS] = _resolve_benchmark_plib_options(
             problem_options
         )
@@ -1162,7 +1163,7 @@ def _benchmark(
     else:
         path_readme_log = None
 
-    if not profile_options[ProfileOption.SCORE_ONLY] and 'problem' not in locals():
+    if not profile_options[ProfileOption.SCORE_ONLY] and not has_single_problem:
         # path_figs = path_log / 'profile_figs'
         # path_figs.mkdir(parents=True, exist_ok=True)
         # try:
@@ -1264,7 +1265,7 @@ def _benchmark(
                 logger.warning(f'Error message: {_shorten_log_message(exc)}')
 
     # Create the directories for the performance profiles, data profiles, and log-ratio profiles.
-    if not profile_options[ProfileOption.SCORE_ONLY] and 'problem' not in locals():
+    if not profile_options[ProfileOption.SCORE_ONLY] and not has_single_problem:
         path_perf_hist = path_stamp / 'detailed_profiles' / 'perf_history-based'
         path_data_hist = path_stamp / 'detailed_profiles' / 'data_history-based'
         path_log_ratio_hist = path_stamp / 'detailed_profiles' / 'log-ratio_history-based'
@@ -1299,7 +1300,7 @@ def _benchmark(
     path_log_ratio_out_summary = path_stamp / 'log-ratio_out.pdf'
 
     # If a specific problem is provided to `problem_options`, we only solve this problem and generate the history plots for it.
-    if 'problem' in locals():
+    if has_single_problem:
         profile_options_log, _ = _with_solver_log_names(profile_options, len(problem.name))
         if report is not None:
             report.selection('user', [problem.name])
@@ -1624,6 +1625,39 @@ def _benchmark(
     if not profile_options[ProfileOption.SCORE_ONLY]:
         _append_quantized_truth_note(feature, is_load, results_plibs,
                                      path_report, path_readme_log)
+
+    solver_scores, profile_scores, curves = _build_profiles(
+        results_plibs, profile_options, profile_context, solver_names, feature,
+        report, logger, path_stamp, path_readme_log, stamp, curves,
+    )
+
+    # Close the listener of the logger.
+    if not profile_options[ProfileOption.SCORE_ONLY]:
+        _close_logging_resources(logging_resources)
+
+    return solver_scores, profile_scores, curves
+
+
+def _build_profiles(
+    results_plibs, profile_options, profile_context, solver_names, feature,
+    report, logger, path_stamp, path_readme_log, stamp, curves,
+):
+    """Score collected results and render their profile artifacts."""
+    path_log = path_stamp / 'test_log'
+    path_report = path_log / 'report.txt'
+    path_readme_feature = path_stamp / 'README.txt'
+    path_perf_hist = path_stamp / 'detailed_profiles' / 'perf_history-based'
+    path_perf_hist_summary = path_stamp / 'perf_hist.pdf'
+    path_perf_out = path_stamp / 'detailed_profiles' / 'perf_output-based'
+    path_perf_out_summary = path_stamp / 'perf_out.pdf'
+    path_data_hist = path_stamp / 'detailed_profiles' / 'data_history-based'
+    path_data_hist_summary = path_stamp / 'data_hist.pdf'
+    path_data_out = path_stamp / 'detailed_profiles' / 'data_output-based'
+    path_data_out_summary = path_stamp / 'data_out.pdf'
+    path_log_ratio_hist = path_stamp / 'detailed_profiles' / 'log-ratio_history-based'
+    path_log_ratio_hist_summary = path_stamp / 'log-ratio_hist.pdf'
+    path_log_ratio_out = path_stamp / 'detailed_profiles' / 'log-ratio_output-based'
+    path_log_ratio_out_summary = path_stamp / 'log-ratio_out.pdf'
 
     # Process the results from all the problem libraries.
     if report is not None:
@@ -2171,10 +2205,6 @@ def _benchmark(
             logger.info(f'{path_readme_feature}')
             logger.info('')
             logger.info('=' * 70)
-
-    # Close the listener of the logger.
-    if is_saving:
-        _close_logging_resources(logging_resources)
 
     return solver_scores, profile_scores, curves
 

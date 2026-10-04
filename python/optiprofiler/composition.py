@@ -71,7 +71,7 @@ import numpy as np
 from .experiment import STRATEGY_COMPOSED
 from .feature_definitions import STAGE_CODES, retains_reference
 from .feature_definitions import SEED_POLICY_COMPOSED as SEED_POLICY
-from .opclasses import (Feature, FeatureName, FeatureOption, FeaturedProblem, Problem, _StageRuntime,
+from .opclasses import (Feature, FeatureName, FeatureOption, FeaturedProblem, Problem, _StageRuntime, _begin_featured_query,
                         _process_1d_array, _validate_max_eval, _validate_seed)
 from .utils import get_logger, shorten_log_message
 
@@ -867,10 +867,7 @@ class ComposedFeaturedProblem(FeaturedProblem):
         return self._final.reference_fun(x), self._final.reference_maxcv(x)
 
     def fun(self, x):
-        if self._real_n_eval_fun >= 2 * self._max_eval:
-            raise StopIteration(f'The number of the objective function evaluations has reached {2 * self._max_eval} (two times the maximum function evaluations).')
-        self._real_n_eval_fun += 1
-        if self.n_eval_fun >= self._max_eval:
+        if not _begin_featured_query(self, 'fun'):
             return self._last_fun
         x = self._point(x, 'fun')
         f = self._final.observed_fun(x)
@@ -883,10 +880,7 @@ class ComposedFeaturedProblem(FeaturedProblem):
         return f
 
     def cub(self, x, record_hist=True):
-        if self._real_n_eval_cub >= 2 * self._max_eval:
-            raise StopIteration(f'The number of the nonlinear inequality constraint evaluations has reached {2 * self._max_eval} (two times the maximum function evaluations).')
-        self._real_n_eval_cub += 1
-        if self.n_eval_cub >= self._max_eval:
+        if not _begin_featured_query(self, 'cub'):
             return self._last_cub
         x = self._point(x, 'cub')
         c = self._final.observed_cub(x)
@@ -896,10 +890,7 @@ class ComposedFeaturedProblem(FeaturedProblem):
         return c
 
     def ceq(self, x, record_hist=True):
-        if self._real_n_eval_ceq >= 2 * self._max_eval:
-            raise StopIteration(f'The number of the nonlinear equality constraint evaluations has reached {2 * self._max_eval} (two times the maximum function evaluations).')
-        self._real_n_eval_ceq += 1
-        if self.n_eval_ceq >= self._max_eval:
+        if not _begin_featured_query(self, 'ceq'):
             return self._last_ceq
         x = self._point(x, 'ceq')
         c = self._final.observed_ceq(x)
