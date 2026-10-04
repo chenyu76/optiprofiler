@@ -1,4 +1,5 @@
 import numpy as np
+from .validation import normalize_integer
 from scipy.linalg import qr
 import copyreg
 import re
@@ -10,7 +11,6 @@ from numpy.linalg import lstsq
 from scipy.optimize import Bounds, LinearConstraint, NonlinearConstraint, minimize
 from scipy import __version__ as _SCIPY_VERSION
 
-import warnings
 from .utils import FeatureName, FeatureOption, get_logger, shorten_log_message
 from .feature_definitions import (_SPEC_TYPE_MESSAGE, Declaration, StageRecord, fold_option_names, normalize_entries,
                                   normalize_shorthand, reject_experiment_options, reject_flat_stage_options)
@@ -1214,10 +1214,7 @@ class _StageRuntime:
         if seed is not None:
             if np.isnan(seed) or np.isinf(seed):
                 seed = 0
-            if isinstance(seed, (float, np.floating)) and float(seed).is_integer():
-                seed = int(seed)
-            if isinstance(seed, np.integer):
-                seed = int(seed)
+            seed = normalize_integer(seed)
             if not isinstance(seed, int):
                 raise TypeError('The argument seed must be an integer.')
             if seed < 0:
@@ -3615,10 +3612,7 @@ class FeaturedProblem(Problem):
 
 def _validate_max_eval(max_eval):
     """Validate the evaluation budget of a featured problem and return it as an ``int``."""
-    if isinstance(max_eval, (float, np.floating)) and float(max_eval).is_integer():
-        max_eval = int(max_eval)
-    if isinstance(max_eval, np.integer):
-        max_eval = int(max_eval)
+    max_eval = normalize_integer(max_eval)
     if not isinstance(max_eval, int):
         raise TypeError('The argument `max_eval` for featured problem must be an integer.')
     if max_eval < 1:
@@ -3629,10 +3623,7 @@ def _validate_max_eval(max_eval):
 def _validate_seed(seed):
     """Validate the seed of a featured problem (``None`` is allowed) and return it as an ``int``."""
     if seed is not None:
-        if isinstance(seed, (float, np.floating)) and float(seed).is_integer():
-            seed = int(seed)
-        if isinstance(seed, np.integer):
-            seed = int(seed)
+        seed = normalize_integer(seed)
         if not isinstance(seed, int):
             raise TypeError('The argument seed must be an integer.')
         if seed < 0:

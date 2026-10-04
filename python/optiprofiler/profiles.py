@@ -38,6 +38,7 @@ from .profile_utils import _mask_invalid_merits, _get_default_feature_stamp
 from .experiment import ABSENT, PLAIN_REFERENCE, PRIMARY, resolve_plan
 from .feature_definitions import reject_flat_stage_options
 from .provenance import effective_specification, feature_pipeline_text
+from .legacy_compat import REFINED_SCHEMA
 from .plotting import draw_hist, set_profile_context, format_float_scientific_latex, draw_profiles, summary_legend_extra_width, latex_escape_text, format_profile_text
 
 
@@ -1162,16 +1163,6 @@ def _benchmark(
     else:
         path_readme_log = None
 
-    if not profile_options[ProfileOption.SCORE_ONLY] and 'problem' not in locals():
-        # path_figs = path_log / 'profile_figs'
-        # path_figs.mkdir(parents=True, exist_ok=True)
-        # try:
-        #     with path_readme_log.open('a') as f:
-        #         f.write(f"'profile_figs': folder, containing all the FIG files of the profiles.\n")
-        # except:
-        #     pass
-        pass
-
     # Save the options and record the log.
     # Initialize log_queue and listener to None for the case when score_only=True.
     log_queue = None
@@ -1203,7 +1194,7 @@ def _benchmark(
             # the ordered effective stage specification (native values, callables
             # included), never a flat stage-option projection. Replay with
             # feature=refined['feature_specification'] and n_runs=refined['n_runs'].
-            options_refined['schema'] = 'options_refined-v2'
+            options_refined['schema'] = REFINED_SCHEMA
             if is_load:
                 # A load executes no solver. Its recipe is the archived
                 # experiment, recovered only from the source experiment's own
@@ -2739,40 +2730,9 @@ def _solve_one_problem(solvers, problem, feature, plan, problem_name, len_proble
                 elif problem_type == 'n':
                     return solvers[i_solver](featured_problem.fun, featured_problem.x0, featured_problem.xl, featured_problem.xu, featured_problem.aub, featured_problem.bub, featured_problem.aeq, featured_problem.beq, featured_problem.cub, featured_problem.ceq)              
 
-            # Solve the problem with the solver.
-            #
-            # The control flow below mirrors the MATLAB implementation in
-            # ``solveOneProblem.m`` and is built around two nested
-            # ``try`` blocks:
-            #
-            # * The INNER ``try`` wraps only the solver call. If the solver
-            #   raises, ``x`` is *not* reassigned and stays as the pre-set
-            #   initial guess ``featured_problem.x0`` (assigned just below
-            #   for exactly this reason). This fallback to ``x0`` is an
-            #   intentional OUTPUT-BASED PENALTY for failed / crashed runs:
-            #   the output-based profile (and the corresponding score) is
-            #   then evaluated at the initial point, while the
-            #   history-based profile is unaffected because it is built
-            #   from ``featured_problem.fun_hist`` /
-            #   ``featured_problem.maxcv_hist`` which already record every
-            #   evaluation the solver actually performed before crashing.
-            #   We deliberately do NOT try to "recover" the best evaluated
-            #   point from the history for the output-based score: the
-            #   user only ever sees the point a solver returns, so a
-            #   crashed run must be punished there. Falling back to ``x0``
-            #   is the most basic choice that is solver-independent and
-            #   guarantees a finite-or-Inf value derived from the problem
-            #   itself, not from the failing solver.
-            #
-            # * The OUTER ``try`` wraps the post-solve processing
-            #   (back-transform of ``x``, evaluation of ``fun_out`` /
-            #   ``maxcv_out``, logging). If anything in there raises we
-            #   just log it; ``fun_out`` / ``maxcv_out`` then stay at NaN
-            #   so downstream code treats them as missing data.
-            #
-            # Note: ``featured_problem.x0`` already returns a fresh
-            # ``np.copy`` of the modified initial guess, so this assignment
-            # is safe even if the solver mutates its input array.
+            # Failed runs use x0 for output scoring; the history still
+            # records evaluations completed before the solver failed.
+            # Post-solve truth failures leave output entries unavailable.
             x = featured_problem.x0
             with warnings.catch_warnings():
                 warnings.filterwarnings('ignore')
@@ -2788,10 +2748,7 @@ def _solve_one_problem(solvers, problem, feature, plan, problem_name, len_proble
                             with open(os.devnull, 'w') as devnull, redirect_stdout(devnull), redirect_stderr(devnull):
                                 x = call_solver()
                     except Exception as exc:
-                        # Mark this (solver, run) as abnormally terminated;
-                        # ``x`` keeps its pre-assigned ``featured_problem.x0``
-                        # value and the fallback flag will also be set
-                        # below (since ``x is featured_problem.x0`` here).
+                        # Preserve x0 as the output fallback after failure.
                         solver_abnormal_terminations[i_solver, i_run] = True
                         solver_output_fallbacks[i_solver, i_run] = True
                         if profile_options[ProfileOption.SOLVER_VERBOSE] >= 1:
@@ -2809,24 +2766,8 @@ def _solve_one_problem(solvers, problem, feature, plan, problem_name, len_proble
                         x = featured_problem.x0
                         solver_output_fallbacks[i_solver, i_run] = True
 
-                    # Record the END timestamp explicitly and take the
-                    # straightforward float difference. Storing both
-                    # endpoints (as opposed to wrapping a tic/toc-style
-                    # opaque handle) means the elapsed time is just an
-                    # IEEE-754 subtraction and the raw start / end
-                    # values are available for forensics if either of
-                    # the defensive branches below ever fires.
-                    #
-                    # ``time.monotonic`` is guaranteed by PEP 418 not
-                    # to go backward (see
-                    # https://docs.python.org/3/library/time.html#time.monotonic
-                    # and https://peps.python.org/pep-0418/ ), so under
-                    # normal operation neither branch below is reached.
-                    # We keep them as defensive guards against
-                    # pathological cases (custom solver tampering with
-                    # the timer, mocked time during tests, etc.) and
-                    # to keep the control flow in lockstep with the
-                    # MATLAB implementation in ``solveOneProblem.m``.
+                    # Measure solver-only elapsed time, matching MATLAB.
+                    # Keep both endpoints to diagnose anomalous timer values.
                     time_end_monotonic = time.monotonic()
                     elapsed = time_end_monotonic - time_start_solver_run
 

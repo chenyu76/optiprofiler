@@ -40,6 +40,7 @@ from pathlib import Path
 from . import utils as _utils
 from .feature_definitions import EXPERIMENT_OPTIONS, STAGE_NAMES, validated_local_options
 from .utils import FeatureOption, ProblemOption
+from .provenance import FEATURE_PIPELINE_SCHEMA
 
 REFINED_SCHEMA = 'options_refined-v2'
 USER_SCHEMA = 'options_user-v2'
@@ -633,7 +634,7 @@ def _recipe_from_archived(archived, results_plibs):
         if isinstance(stamp, str) and isinstance(archived.get('feature_stamp'), str) and stamp != archived['feature_stamp']:
             return _closed_recipe('archive_feature_stamp_disagrees_with_source_options')
         payload, schema = read_feature_pipeline(result.get('feature_pipeline'))
-        if isinstance(payload, Mapping) and schema == 'feature_pipeline-v3':
+        if isinstance(payload, Mapping) and schema == FEATURE_PIPELINE_SCHEMA:
             block = payload.get('feature') if isinstance(payload.get('feature'), Mapping) else {}
             experiment = payload.get('experiment') if isinstance(payload.get('experiment'), Mapping) else {}
             detail, callbacks = _stages_disagreement(block.get('stages'), feature)

@@ -18,6 +18,7 @@ import math
 from types import MappingProxyType
 
 import numpy as np
+from .validation import normalize_integer
 
 from .utils import FeatureName, FeatureOption
 
@@ -160,10 +161,7 @@ def validate_option(name, key, value):
     elif key == FeatureOption.SIGNIFICANT_DIGITS:
         if isinstance(value, (bool, np.bool_)):
             raise TypeError(f'Option `{key}` must be an integer, not a boolean.')
-        if isinstance(value, (float, np.floating)) and float(value).is_integer():
-            value = int(value)
-        if isinstance(value, np.integer):
-            value = int(value)
+        value = normalize_integer(value)
         if not isinstance(value, int):
             raise TypeError(f'Option `{key}` must be an integer.')
         if value <= 0:
@@ -595,9 +593,6 @@ class Declaration:
             return None
         return '+'.join(name for name, _ in self._entries)
 
-    @property
-    def is_known(self):
-        return self._route is not None
 
     def __repr__(self):
         return f'Declaration({self._route!r}, {self.name!r})'
