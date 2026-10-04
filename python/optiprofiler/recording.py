@@ -1,5 +1,6 @@
 """Shared reference-history failure policy for feature recorders."""
 
+import logging
 import warnings
 import numpy as np
 
@@ -9,8 +10,10 @@ def reference_maxcv_or_nan(evaluate, x):
     try:
         return evaluate(x)
     except Exception as error:
-        warnings.warn(
-            f'Reference constraint violation could not be recorded: '
-            f'{type(error).__name__}: {error}', RuntimeWarning, stacklevel=3,
-        )
+        message = (f'Reference constraint violation could not be recorded: '
+                   f'{type(error).__name__}: {error}')
+        # Solver execution suppresses Python warnings; its queue logger must
+        # still retain this failure in the benchmark log.
+        logging.getLogger(__name__).warning(message)
+        warnings.warn(message, RuntimeWarning, stacklevel=3)
         return np.nan

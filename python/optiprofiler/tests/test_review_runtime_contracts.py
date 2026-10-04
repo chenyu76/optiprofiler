@@ -197,3 +197,16 @@ def test_public_saved_benchmark_restores_host_logging(tmp_path, monkeypatch, fai
         root.handlers[:] = original_handlers
         root.setLevel(original_level)
         sentinel.close()
+
+
+def test_reference_history_diagnostic_survives_warning_suppression(caplog):
+    import warnings
+    from optiprofiler.recording import reference_maxcv_or_nan
+
+    def invalid(x):
+        raise ValueError('wrong constraint size')
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        assert np.isnan(reference_maxcv_or_nan(invalid, [1.]))
+    assert 'ValueError: wrong constraint size' in caplog.text
