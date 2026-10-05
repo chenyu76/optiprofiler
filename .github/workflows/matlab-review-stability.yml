@@ -1,7 +1,7 @@
 name: MATLAB review stability
 on:
   push:
-    branches: [fix/review-integrated]
+    branches: [fix/2.0-review-fixes]
   pull_request:
     branches: [main, matlab]
   workflow_dispatch:

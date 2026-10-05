@@ -4,7 +4,7 @@ name: Python unit test
 
 on:
   push:
-    branches: [main, python, fix/review-integrated]
+    branches: [main, python, fix/2.0-review-fixes]
   pull_request:
     branches: [main, python]
   workflow_dispatch:
