@@ -1,7 +1,5 @@
 # Implementation report: revised reference contract (`codex/reference-facts-scalar`)
 
-> Historical evidence for the commit stated below. This document is not an acceptance record for the current branch. Run the core and integration workflows at the candidate commit for current validation; the temporary paths below refer to the original test environment.
-
 ## 1. Identity
 
 - Branch `codex/reference-facts-scalar`, created from

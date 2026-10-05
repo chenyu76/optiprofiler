@@ -101,9 +101,24 @@ function result = solveOneProblem(solvers, problem, feature, problem_name, len_p
             warning_state = warning;
             warning_cleanup = onCleanup(@() warning(warning_state));
             warning('off', 'all');
-            % Signed differences avoid tic/toc's unsigned wrap when a
-            % platform counter steps backward (MathWorks Answers #97194).
-            % Negative elapsed values are clamped below.
+            % Record the START timestamp as a POSIX second (double).
+            % We deliberately avoid tic/toc here because the
+            % underlying high-resolution counter that tic/toc reads
+            % can occasionally appear to step backward on some
+            % systems (observed on Linux with OptiProfiler; the
+            % originally documented case was AMD/Windows). tic/toc
+            % subtracts two uint64 ticks MODULO 2^64, so any tiny
+            % backward step produces an elapsed time near
+            % 2^64/1e6 ~ 1.8e13 s. By storing the start and end as
+            % plain doubles and subtracting them directly, the
+            % result is always a regular IEEE double difference; a
+            % non-monotonic event surfaces as a small NEGATIVE
+            % number, which we can detect and clamp. The MathWorks
+            % Support Team accepted answer at MathWorks Answers
+            % #97194 describes the root cause (a non-monotonic CPU
+            % cycle counter used as the time source) which is
+            % platform-agnostic:
+            %   https://www.mathworks.com/matlabcentral/answers/97194
             time_start_posix = posixtime(datetime('now'));
             try
                 try

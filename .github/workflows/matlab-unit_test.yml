@@ -2,7 +2,7 @@ name: MATLAB full unit regression
 
 on:
   push:
-    branches: [main, matlab, fix/2.0-review-fixes]
+    branches: [main, matlab]
   workflow_dispatch:
 
 jobs:

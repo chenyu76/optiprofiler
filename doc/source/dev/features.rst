@@ -49,20 +49,3 @@ addition to the original input. This distinguishes raw current input from old
 unmarked flat archives when using ``legacy_compat.replay_arguments``; both the
 ``feature_name`` shorthand and structured ``feature`` route are supported.
 Use ``options_refined.pkl`` to replay the resolved defaults and run count.
-
-Adding a stage
---------------
-
-A stage has six value channels: observed and reference values for the objective,
-nonlinear inequalities, and nonlinear equalities. Before adding a stage, specify
-all six policies explicitly, including coordinate transport, stochastic streams,
-and whether reference evaluations call user code. Register its options and
-frozen seed code in ``feature_definitions.py``, its view in ``composition.py``,
-and its single-stage behavior in ``opclasses.py``. Preserve the existing seed
-codes and legacy streams; a new policy needs a new version identifier.
-
-Add an independent expected-value case to ``test_stage_channel_contracts.py``.
-Its registry check requires every built-in kind to declare its channel behavior.
-Also cover nonconstant coordinate transformations, callback counts, constraint
-shape, history budgets, serialization, and MATLAB compatibility where applicable.
-The constant-value matrix checks value policy; it does not replace these tests.

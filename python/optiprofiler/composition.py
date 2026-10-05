@@ -77,6 +77,9 @@ from .opclasses import (Feature, FeatureOption, FeaturedProblem, Problem, _Stage
                         _process_1d_array, _validate_max_eval, _validate_seed)
 from .utils import get_logger, shorten_log_message
 
+# Frozen numeric stage codes used in seed derivation. Never renumber; append
+# new features with new codes. ``plain`` has no code because it never forms a
+# stage of an effective pipeline.
 # Frozen channel tags of the seed derivation. Never renumber.
 CHANNEL_TAGS = {'fun': 0, 'cub': 1, 'ceq': 2, 'construction': 3}
 

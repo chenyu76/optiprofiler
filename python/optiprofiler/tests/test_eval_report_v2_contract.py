@@ -72,8 +72,13 @@ class TestSchemaSelection:
         assert module.schema_resource('eval_report', 1) == 'eval_report.schema.json'
         assert module.schema_identifier('eval_report') == 'optiprofiler.eval_report/2'
         assert module.schema_identifier('plot_data') == 'optiprofiler.plot_data/1'
-        # The numeric companion keeps its public document identity.
-        assert module.schema_identifier('plot_data') == 'optiprofiler.plot_data/1'
+        # The numeric companion keeps its contract; v2 references the same identifier.
+        assert v2['$defs']['plotDataReference']['properties']['schema']['const'] == 'optiprofiler.plot_data/1'
+        effective = v2['$defs']['configuration']['properties']['effective']
+        assert effective['required'] == ['problem_options', 'profile_options', 'feature', 'experiment']
+        assert v2['$defs']['experimentPlan']['required'] == ['role', 'n_runs', 'origin', 'run_policy', 'execution_strategy',
+                                                           'runtime_policy']
+        assert v2['$defs']['experimentPlans']['additionalProperties'] is False
 
     def test_emitted_feature_and_experiment_contract(self, tmp_path, monkeypatch):
         import copy

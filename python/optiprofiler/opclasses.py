@@ -3351,6 +3351,8 @@ class FeaturedProblem(Problem):
             If the number of the objective function evaluations has reached two times the maximum function evaluations.
         """
         if not _begin_featured_query(self, 'fun'):
+            # If the maximum number of evaluations has been reached, return
+            # the last evaluated objective function value.
             return self._last_fun
 
         # Generate the affine transformation.
@@ -3400,6 +3402,8 @@ class FeaturedProblem(Problem):
             If the number of the nonlinear inequality constraint evaluations has reached two times the maximum function evaluations.
         """
         if not _begin_featured_query(self, 'cub'):
+            # If the maximum number of evaluations has been reached, return
+            # the last evaluated nonlinear inequality constraints.
             return self._last_cub
 
         # Generate the affine transformation.
@@ -3411,7 +3415,11 @@ class FeaturedProblem(Problem):
 
         # Record the history of the nonlinear inequality constraints only when `record_hist` is true.
         if record_hist:
+            # Evaluate the nonlinear inequality constraints and store the results.
             c_true = super().cub(A @ x + b)
+
+            # If the feature is 'quantized' and the option ``ground_truth'' is set to true, we should
+            # set c_true to c.
             if self._runtime.name == 'quantized' and self._runtime.options[FeatureOption.GROUND_TRUTH]:
                 c_true = c
             self._cub_hist.append(c_true)
@@ -3442,6 +3450,8 @@ class FeaturedProblem(Problem):
             If the number of the nonlinear equality constraint evaluations has reached two times the maximum function evaluations.
         """
         if not _begin_featured_query(self, 'ceq'):
+            # If the maximum number of evaluations has been reached, return
+            # the last evaluated nonlinear equality constraints.
             return self._last_ceq
 
         # Generate the affine transformation.
@@ -3453,7 +3463,11 @@ class FeaturedProblem(Problem):
 
         # Record the history of the nonlinear equality constraints only when `record_hist` is true.
         if record_hist:
+            # Evaluate the nonlinear equality constraints and store the results.
             c_true = super().ceq(A @ x + b)
+
+            # If the feature is 'quantized' and the option ``ground_truth'' is set to true, we should
+            # set c_true to c.
             if self._runtime.name == 'quantized' and self._runtime.options[FeatureOption.GROUND_TRUTH]:
                 c_true = c
             self._ceq_hist.append(c_true)
