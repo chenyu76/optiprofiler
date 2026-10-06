@@ -12,7 +12,7 @@ def custom_load(problem_name):
     This is a toy example to show how to write a custom problem loader.
     """
     problem_module = importlib.import_module(
-        f'optiprofiler.problem_libs.custom.python_problems.{problem_name}'
+        f'.python_problems.{problem_name}', package=__package__
     )
     problem_handle = getattr(problem_module, problem_name)
     p_dict = problem_handle()

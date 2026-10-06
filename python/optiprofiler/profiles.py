@@ -14,7 +14,6 @@ from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime
 from functools import wraps
 from inspect import signature
-from multiprocessing.reduction import ForkingPickler
 from pathlib import Path
 from typing import Any, Callable
 
@@ -27,10 +26,11 @@ from matplotlib.lines import Line2D
 from matplotlib.backends import backend_pdf
 from matplotlib.ticker import MaxNLocator, FuncFormatter
 
-from ._parallel import run_tasks
+from ._parallel import run_tasks, worker_main_available, WorkerArgumentPickler
 from .opclasses import Feature, Problem, FeaturedProblem
 from .plib_config import _resolve_plib_options
 from .problem_libraries import _copy_problem_library_options, _normalize_selected_problem_names, load_problem_library, resolve_problem_library
+from .problem_libraries import _initialize_problem_library_worker, _problem_library_worker_package
 from .utils import DEFAULT_LOG_LINE_WIDTH, FeatureName, ProfileOption, FeatureOption, ProblemOption, get_logger, print_log_message, setup_main_process_logging, setup_worker_logging, shorten_log_message, format_log_prefix
 from .loader import load_results, save_results_to_h5, save_options
 from .profile_utils import check_validity_problem_options, check_validity_profile_options, check_post_load_profile_options, get_default_problem_options, get_default_profile_options, compute_merit_values, create_stamp, merge_pdfs_with_pypdf, write_report, process_results, init_readme, add_to_readme, compute_scores
@@ -2377,10 +2377,20 @@ def _solve_all_problems(solvers, plib, feature, plan, problem_options, profile_o
     # Determine whether to use sequential mode or parallel mode.
     sequential_mode = profile_options[ProfileOption.N_JOBS] == 1 or os.cpu_count() == 1
 
+    if not sequential_mode and not worker_main_available():
+        # Fresh processes cannot import notebook/REPL-local solver definitions.
+        # Decide before any task executes; never replay a failed parallel run.
+        sequential_mode = True
+        logger.info(
+            'Falling back to sequential mode because worker processes cannot '
+            'import this entry point. To run in parallel, use a '
+            'Python script with an if __name__ == "__main__" guard.'
+        )
+
     # Fall back to sequential mode if the arguments cannot be pickled (e.g.,
     # when the user passes lambda functions as solvers or feature modifiers).
-    # Use ForkingPickler (same as the process executor) — plain pickle.dumps can
-    # disagree and let unpicklable tasks reach the executor, which then crashes.
+    # Use the executor's ForkingPickler reducers, plus entry-point validation:
+    # plain pickle.dumps can accept globals that a fresh worker cannot import.
     if not sequential_mode:
         try:
             sample_arg = (
@@ -2394,14 +2404,14 @@ def _solve_all_problems(solvers, plib, feature, plan, problem_options, profile_o
                 library_ref,
                 library_options,
             )
-            ForkingPickler.dumps(sample_arg)
-        except Exception:
+            WorkerArgumentPickler.dumps(sample_arg)
+        except Exception as exc:
             sequential_mode = True
             logger.info(
                 'Falling back to sequential mode because worker processes cannot '
-                'serialize the benchmark arguments (e.g., lambda functions in '
-                'solvers, feature modifiers, or profile options). Use top-level '
-                'functions (def ...) instead of lambdas to enable parallel execution.'
+                'serialize or import the benchmark arguments: '
+                f'{shorten_log_message(exc)} Use top-level functions in an '
+                'importable module to enable parallel execution.'
             )
 
     # Solve all problems.
@@ -2411,8 +2421,10 @@ def _solve_all_problems(solvers, plib, feature, plan, problem_options, profile_o
     else:
         logger.info('Entering the parallel section.')
         results = run_tasks(_solve_one_problem_wrapper, args,
-                            profile_options[ProfileOption.N_JOBS], setup_worker_logging,
-                            (log_queue,))
+                            profile_options[ProfileOption.N_JOBS],
+                            _initialize_problem_library_worker,
+                            (library_ref, setup_worker_logging, (log_queue,),
+                             _problem_library_worker_package(library_ref)))
         logger.info('Leaving the parallel section.')
 
     # Keep load failures observable before the legacy aggregate discards them.
@@ -2927,6 +2939,13 @@ def _solve_one_problem(solvers, problem, feature, plan, problem_name, len_proble
                             f'(run {i_run + 1}/{real_n_runs[i_solver]}): {_shorten_log_message(exc)}'
                         )
             n_eval[i_solver, i_run] = featured_problem.n_eval_fun
+            # A single misplaced constraint value can broadcast over several
+            # objective slots and falsely mark unavailable evaluations feasible.
+            # Histories describe paired observations; never pad or broadcast a
+            # malformed recorder result into the scoring arrays.
+            if (len(featured_problem.fun_hist) != n_eval[i_solver, i_run]
+                    or len(featured_problem.maxcv_hist) != n_eval[i_solver, i_run]):
+                raise RuntimeError('Objective and constraint histories are not aligned.')
             fun_history[i_solver, i_run, :n_eval[i_solver, i_run]] = featured_problem.fun_hist[:n_eval[i_solver, i_run]]
             maxcv_history[i_solver, i_run, :n_eval[i_solver, i_run]] = featured_problem.maxcv_hist[:n_eval[i_solver, i_run]]
             if n_eval[i_solver, i_run] > 0:

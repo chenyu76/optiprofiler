@@ -155,7 +155,7 @@ classdef EvalReport < handle
         function rollbackReservations(self)
             % Delete a reserved target only while it is still ours: its current
             % identity equals the one recorded at reservation or at the last
-            % publish. Foreign files (a concurrent writer, a pre-existing
+            % publish. Foreign files (a concurrent writer, a preexisting
             % companion) are never touched.
             targets = {self.path, self.ownedIdentity; self.plotPath, self.plotIdentity};
             for k = 1:size(targets, 1)
@@ -356,6 +356,15 @@ classdef EvalReport < handle
                         % native archive, not repeated across the compact JSON.
                         if isfield(observed_runtime, 'run_seed')
                             item.oracle_seed = observed_runtime.run_seed;
+                        end
+                        if isfield(observed_runtime, 'reference_history_failure')
+                            failure = observed_runtime.reference_history_failure;
+                            % Keep the bounded cause's identifier, not callback
+                            % inputs or arbitrary exception text, in compact JSON.
+                            self.addDiagnostic('reference_history_unavailable', 'numerical', ...
+                                struct('library', library, 'problem', result.problem_name, ...
+                                'role', role, 'solver_index', solver, 'run_index', run, ...
+                                'exception_type', failure.identifier));
                         end
                     end
                     entry.runs{end+1} = item;

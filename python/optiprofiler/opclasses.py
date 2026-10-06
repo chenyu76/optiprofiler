@@ -3374,7 +3374,10 @@ class FeaturedProblem(Problem):
         # We should not store the modified value because the performance of an optimization solver
         # should be measured using the original objective function.
         self._fun_hist.append(f_true)
-        self._maxcv_hist.append(reference_maxcv_or_nan(self.maxcv, x, self))
+        # Keep paired histories even if the caller escalates the diagnostic
+        # warning. The unavailable observation must retain its own NaN slot.
+        self._maxcv_hist.append(np.nan)
+        self._maxcv_hist[-1] = reference_maxcv_or_nan(self.maxcv, x, self)
 
         return f
 

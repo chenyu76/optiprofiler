@@ -51,6 +51,43 @@ parent directory or the library directory:
 An explicit filesystem adapter applies only to that benchmark run and takes
 precedence over an installed provider with the same public name.
 
+Adapting the bundled example
+---------------------------
+
+The bundled ``custom`` library contains four small examples and remains
+available as ``plibs=['custom']``.  Keep your own problems outside the installed
+package.  You can copy the complete
+``python/optiprofiler/problem_libs/custom`` directory to
+``/path/to/my-libraries/custom`` and edit that copy.  With
+``custom_problem_libs_path='/path/to/my-libraries'``, the external copy takes
+precedence, including its problem definitions and ``probinfo_python.csv``.
+
+The template loads problem modules relative to its own package:
+
+.. code-block:: python
+
+    problem_module = importlib.import_module(
+        f'.python_problems.{problem_name}', package=__package__
+    )
+
+Use relative imports for your own sibling modules too.  Do not import them
+through ``optiprofiler.problem_libs.custom``: that would load the installed
+examples instead of your external files.  The adapter loader provides an
+isolated package context, including when the directory has no ``__init__.py``;
+you do not need to modify ``sys.path`` or install the copied library.
+
+After adding or changing problems, regenerate ``probinfo_python.csv`` with the
+copied ``custom_get_info`` function.  For an unchanged directory name, run this
+from ``/path/to/my-libraries``:
+
+.. code-block:: console
+
+    python -c "from custom.custom_tools import custom_get_info; custom_get_info()"
+
+If you rename the library, also rename its tools file, its public callback
+prefixes, and any corresponding imports in ``__init__.py``.  The relative
+``python_problems`` import does not need the library name hard-coded into it.
+
 .. _problem_library_plugin_protocol:
 
 Installable provider protocol

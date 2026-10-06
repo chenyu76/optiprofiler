@@ -6,7 +6,11 @@ import numpy as np
 
 
 def reference_maxcv_or_nan(evaluate, x, owner=None):
-    """Keep an unavailable history value, with the underlying failure visible."""
+    """Evaluate reference violation, honoring the caller's warning policy.
+
+    Recorders reserve a NaN history slot before calling: the diagnostic may
+    raise under a warnings-as-errors filter, but must not unpair histories.
+    """
     try:
         return evaluate(x)
     except Exception as error:

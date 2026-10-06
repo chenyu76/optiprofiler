@@ -876,7 +876,9 @@ class ComposedFeaturedProblem(FeaturedProblem):
         f = self._final.observed_fun(x)
         self._last_fun = f
         self._fun_hist.append(self._final.reference_fun(x))
-        self._maxcv_hist.append(reference_maxcv_or_nan(self._final.reference_maxcv, x, self))
+        # Reserve the paired slot before a diagnostic can become an exception.
+        self._maxcv_hist.append(np.nan)
+        self._maxcv_hist[-1] = reference_maxcv_or_nan(self._final.reference_maxcv, x, self)
         return f
 
     def cub(self, x, record_hist=True):

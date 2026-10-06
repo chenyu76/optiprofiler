@@ -1111,6 +1111,9 @@ function [solver_scores, profile_scores, curves] = benchmarkImpl(eval_report, va
             printSolverLogAliases(solver_names, profile_options_problem.solver_log_names);
         end
         result = solveOneProblem(solvers, problem, feature, problem.name, length(problem.name), profile_options_problem, true, path_hist_plots, ~isempty(eval_report), primary_plan);
+        if profile_options.(ProfileOptionKey.SILENT.value) && ~profile_options.(ProfileOptionKey.SCORE_ONLY.value)
+            appendReferenceHistoryDiagnostics(path_log, result, 'user', 'primary');
+        end
         % Metadata cannot turn a failed empty result into numerical success.
         if isstruct(result) && isfield(result, 'fun_history')
             result.feature_pipeline = optiprofiler_internal.EvalReport.encodeMetadata( ...
@@ -1307,6 +1310,9 @@ function [solver_scores, profile_scores, curves] = benchmarkImpl(eval_report, va
             end
             
             results_plibs{i_plib} = results_plib;
+            if profile_options.(ProfileOptionKey.SILENT.value) && ~profile_options.(ProfileOptionKey.SCORE_ONLY.value)
+                appendReferenceHistoryDiagnostics(path_log, results_plib, plib, 'primary');
+            end
             if ~isempty(eval_report), eval_report.addResults({results_plib}); end
 
             if strcmp(profile_options.(ProfileOptionKey.DRAW_HIST_PLOTS.value), 'parallel')    

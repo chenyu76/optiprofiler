@@ -261,6 +261,12 @@ function result = solveOneProblem(solvers, problem, feature, problem_name, len_p
             % Snapshot only after actual execution and non-recording output
             % scoring. Copied slots stay empty: they did not run an oracle.
             runtime_receipts{i_solver, i_run} = featured_problem.runtimeReceipt();
+            if ~isempty(failure)
+                % The native archive already retains actual runtime receipts.
+                % Keep the first bounded cause there even in silent mode;
+                % controller logging/reporting must not rely on live objects.
+                runtime_receipts{i_solver, i_run}.reference_history_failure = failure;
+            end
         end
         % If real_n_runs(i_solver) == 1 ~= n_runs, then we need to copy the result to the other runs.
         if real_n_runs(i_solver) == 1 && n_runs > 1
