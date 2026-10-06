@@ -483,6 +483,9 @@ def _load_tools_module(reference):
                 sys.modules[package_name] = package
                 if package_spec.loader is not None:
                     package_spec.loader.exec_module(package)
+            # Package initialization may already have imported its tools module.
+            if module_name in sys.modules:
+                return sys.modules[module_name]
             spec = importlib.util.spec_from_file_location(module_name, str(module_path))
             if spec is None or spec.loader is None:
                 raise ImportError(f'Cannot load problem library "{reference.name}" at {module_path}.')

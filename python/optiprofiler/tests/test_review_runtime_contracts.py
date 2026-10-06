@@ -251,6 +251,56 @@ def test_failed_package_import_rolls_back_relative_modules(tmp_path):
     assert load_problem_library(ref).select({}, {}) == ['toy']
 
 
+@pytest.fixture
+def reexporting_provider(tmp_path):
+    ref, counter = provider(tmp_path, name='registry_toy')
+    tools = Path(ref.locator)
+    tools.write_text(
+        'from pathlib import Path\n'
+        'from optiprofiler import Problem\n'
+        'with Path({!r}).open("a") as stream: stream.write("import\\n")\n'.format(str(counter)) +
+        'class Payload: pass\n'
+        'def registry_toy_select(options):\n'
+        '    from . import NAMES_BY_TYPE\n'
+        '    return NAMES_BY_TYPE[Payload]\n'
+        'def registry_toy_load(name):\n'
+        '    return Problem(fun=lambda x: sum(x**2), x0=[1., 2.], name=name)\n'
+    )
+    (tools.parent / '__init__.py').write_text(
+        'from .registry_toy_tools import Payload\n'
+        'NAMES_BY_TYPE = {Payload: ["toy"]}\n'
+    )
+    return ref, counter
+
+
+def test_package_reexport_reuses_tools_module_identity(reexporting_provider):
+    from optiprofiler.problem_libraries import _load_tools_module
+    ref, counter = reexporting_provider
+    tools = _load_tools_module(ref)
+    package = sys.modules[tools.__package__]
+    assert counter.read_text().splitlines() == ['import']
+    assert package.registry_toy_tools is tools
+    assert package.Payload is tools.Payload
+    assert sys.modules[tools.__name__] is tools
+    assert package.NAMES_BY_TYPE[tools.Payload] == ['toy']
+    assert _load_tools_module(ref) is tools
+    assert load_problem_library(ref).select({}, {}) == ['toy']
+    assert counter.read_text().splitlines() == ['import']
+
+
+def test_package_reexport_selects_in_public_benchmark(reexporting_provider):
+    ref, counter = reexporting_provider
+    scores, _, _ = benchmark(
+        [initial_solver, initial_solver], plibs=['registry_toy'],
+        custom_problem_libs_path=str(Path(ref.locator).parent),
+        n_jobs=1, score_only=True, silent=True, run_plain=False,
+        max_eval_factor=1, max_tol_order=1,
+    )
+    assert np.all(np.isfinite(scores))
+    assert load_problem_library(ref).select({}, {}) == ['toy']
+    assert counter.read_text().splitlines() == ['import']
+
+
 @pytest.mark.parametrize('name', ['plain', 'truncated+truncated'])
 def test_reference_history_diagnostic_is_bounded_per_trial(name, caplog):
     def malformed(x):
