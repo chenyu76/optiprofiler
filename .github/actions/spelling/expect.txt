@@ -96,6 +96,7 @@ evaltoy
 evalvocab
 evalworkers
 excinfo
+existingtoy
 externaltoy
 featureplan
 ferror
@@ -141,6 +142,7 @@ intersphinx
 intmax
 intmin
 INUSD
+ipython
 INVALIDZERO
 iscellstr
 iscomplexobj
@@ -158,6 +160,7 @@ iuf
 jac
 javaaddpath
 jsonencode
+jsonl
 jsonschema
 jvm
 killpg
@@ -192,9 +195,9 @@ mltbx
 mnt
 modifyitems
 mojibake
+MPLBACKEND
 mtimes
 mtools
-naddpath
 nanmax
 nanmin
 nanvalidity
@@ -202,7 +205,6 @@ nargout
 ndarray
 ndim
 neighbourhoods
-nend
 newaxis
 newobj
 nextafter
@@ -218,7 +220,6 @@ nonhit
 nonscalar
 nonsmooth
 normwise
-nrun
 NScoring
 NTFS
 nullspace
@@ -243,6 +244,7 @@ profilebands
 pyargs
 pyplot
 PYTHONPATH
+PYTHONUNBUFFERED
 qualname
 rasterize
 rasterized
@@ -307,10 +309,10 @@ unloadable
 unmatch
 unparsable
 unpickler
+unpickles
 UNRCH
 unversioned
 upsert
-upserts
 usejava
 usetex
 utc

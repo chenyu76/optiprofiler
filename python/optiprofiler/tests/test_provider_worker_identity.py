@@ -26,14 +26,17 @@ def _write_provider(root, tag):
         '@dataclass\nclass Settings:\n'
         '    scale: float = 3.0\n    owner_pid: int = 0\n'
     )
-    events = root / 'events.jsonl'
+    events = root / 'events'
+    events.mkdir()
     (folder / 'identitytoy_tools.py').write_text(
         'import json, os\nfrom pathlib import Path\n'
         'from .settings import Settings\nfrom . import TAG\n'
         'from optiprofiler import Problem\n'
         'EVENTS = Path(' + repr(str(events)) + ')\n'
         'def record(event, **values):\n'
-        '    with EVENTS.open("a") as stream:\n'
+        # Windows does not guarantee atomic appends from separate processes.
+        # One file per process preserves the evidence without weakening checks.
+        '    with (EVENTS / (str(os.getpid()) + ".jsonl")).open("a") as stream:\n'
         '        stream.write(json.dumps(dict(event=event, pid=os.getpid(), '
         'tag=TAG, **values)) + "\\n")\n'
         'record("import")\n'
@@ -50,11 +53,16 @@ def _write_provider(root, tag):
         'def identitytoy_load(name, *, library_options):\n'
         '    settings = library_options["settings"]\n'
         '    assert type(settings) is Settings\n'
-        '    record("load", owner_pid=settings.owner_pid, scale=settings.scale)\n'
+        '    record("load", name=name, owner_pid=settings.owner_pid, scale=settings.scale)\n'
         '    return Problem(lambda x: settings.scale * float(x @ x), '
         '[1., 2.], name=name)\n'
     )
     return folder, events
+
+
+def _read_events(events):
+    return [json.loads(line) for path in sorted(events.glob('*.jsonl'))
+            for line in path.read_text().splitlines()]
 
 
 def _worker_select(reference, options):
@@ -110,21 +118,35 @@ def _child(case, mode, root):
     else:
         import numpy as np
         jobs = int(mode)
+        report_path = root / 'report.json'
         scores, _, _ = benchmark(
             [initial_solver, initial_solver], plibs=['identitytoy'],
             custom_problem_libs_path=folder, plib_options=overrides,
             n_jobs=jobs, score_only=True, silent=True, run_plain=False,
             max_eval_factor=1, max_tol_order=1,
+            report_path=report_path,
         )
         assert np.all(np.isfinite(scores))
-        records = [json.loads(line) for line in events.read_text().splitlines()]
+        # Independent runtime evidence: finite aggregate scores alone would not
+        # detect a problem silently dropped after a provider load failure.
+        report = json.loads(report_path.read_text())
+        assert report['coverage']['selected'] == report['coverage']['completed'] == 2, report['coverage']
+        assert report['coverage']['load_failed'] == 0, report['coverage']
+        assert len(report['problems']) == 2
+        for problem in report['problems']:
+            assert len(problem['runs']) == 2
+            for run in problem['runs']:
+                assert run['evaluations'] == 1, run
+                assert not run['abnormal_termination'], run
+                assert not run['output_fallback'], run
+        records = _read_events(events)
         loads = [record for record in records if record['event'] == 'load']
-        assert len(loads) == 2
+        assert sorted(record['name'] for record in loads) == ['one', 'two'], loads
         assert all(record['owner_pid'] == os.getpid() for record in loads)
         assert all(record['scale'] == expected_scale for record in loads)
         assert all((record['pid'] == os.getpid()) == (jobs == 1) for record in loads)
 
-    records = [json.loads(line) for line in events.read_text().splitlines()]
+    records = _read_events(events)
     assert all(record['tag'] == 'selected' for record in records)
     assert all(record['pid'] == os.getpid() for record in records
                if record['event'] in {'defaults', 'validate'})
@@ -157,7 +179,9 @@ def _run_child(case, mode, tmp_path):
 
 @pytest.mark.parametrize('case', ['canonical', 'synthetic', 'conflict'])
 @pytest.mark.parametrize('jobs', [1, 2])
-def test_public_benchmark_preserves_provider_option_identity(case, jobs, tmp_path):
+@pytest.mark.parametrize('_attempt', range(3) if os.name == 'nt' else [0])
+def test_public_benchmark_preserves_provider_option_identity(case, jobs, _attempt, tmp_path):
+    # Repeat on Windows, where shared-file receipts previously lost load events.
     _run_child(case, jobs, tmp_path)
 
 

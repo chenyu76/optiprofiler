@@ -9,7 +9,7 @@ def reference_maxcv_or_nan(evaluate, x, owner=None):
     """Evaluate reference violation, honoring the caller's warning policy.
 
     Recorders reserve a NaN history slot before calling: the diagnostic may
-    raise under a warnings-as-errors filter, but must not unpair histories.
+    raise under a warnings-as-errors filter, but histories must remain aligned.
     """
     try:
         return evaluate(x)

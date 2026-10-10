@@ -39,8 +39,9 @@
 (?<=[\'"])[0-9a-f]{40,64}(?=[\'"])
 # Short commit suffixes in recorded source identities.
 (?<=@)[0-9a-f]{7,40}\b
-# Escaped newlines and tabs in generated Python source are not word prefixes.
-\\[nrt](?=[A-Za-z])
+# Only strip escaped newlines before generated source statements. A generic
+# escape rule also consumes the first letter of LaTeX commands and Windows paths.
+\\n(?=(?:addpath|class|def|end|exec|from|import|prefdir|raise|run)\b)
 
 # Python unary negative float calls are not compiler flags.
 -float(?=\()
